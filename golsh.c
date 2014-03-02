@@ -6,8 +6,9 @@
 
 int width = 512;
 int height = 512;
-int zoom = 1;
+int zoom = 2;
 int paused = 0;
+float fps = 30;
 
 void glerr (const char* when) {
     GLenum err = glGetError();
@@ -208,17 +209,19 @@ int main () {
             glUniform1i(uni_do_calc, 1);
             glBindTexture(GL_TEXTURE_2D, use2 ? tex2 : tex1);
             glBindFramebuffer(GL_FRAMEBUFFER, use2 ? fb1 : fb2);
+            glViewport(0, 0, width, height);
             glDrawArrays(GL_QUADS, 0, 4);
              // Copy to window
             glUniform1i(uni_do_calc, 0);
             glBindTexture(GL_TEXTURE_2D, use2 ? tex1 : tex2);
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glViewport(0, 0, width*zoom, height*zoom);
             glDrawArrays(GL_QUADS, 0, 4);
              // Switch buffer
             use2 = !use2;
             glerr("after doing a render");
             glfwSwapBuffers();
-            glfwSleep(1/60.0);
+            glfwSleep(1/fps);
         }
         else {
             glfwWaitEvents();
