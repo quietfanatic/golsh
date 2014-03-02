@@ -204,33 +204,25 @@ int main () {
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, verts);
     for (;;) {
         if (!paused) {
-            if (!use2) {
-                glUniform1i(uni_do_calc, 1);
-                glBindTexture(GL_TEXTURE_2D, tex1);
-                glBindFramebuffer(GL_FRAMEBUFFER, fb2);
-                glDrawArrays(GL_QUADS, 0, 4);
-
-                glUniform1i(uni_do_calc, 0);
-                glBindTexture(GL_TEXTURE_2D, tex2);
-                glBindFramebuffer(GL_FRAMEBUFFER, 0);
-                glDrawArrays(GL_QUADS, 0, 4);
-            }
-            else {
-                glUniform1i(uni_do_calc, 1);
-                glBindTexture(GL_TEXTURE_2D, tex2);
-                glBindFramebuffer(GL_FRAMEBUFFER, fb1);
-                glDrawArrays(GL_QUADS, 0, 4);
-
-                glUniform1i(uni_do_calc, 0);
-                glBindTexture(GL_TEXTURE_2D, tex1);
-                glBindFramebuffer(GL_FRAMEBUFFER, 0);
-                glDrawArrays(GL_QUADS, 0, 4);
-            }
+             // Run a step
+            glUniform1i(uni_do_calc, 1);
+            glBindTexture(GL_TEXTURE_2D, use2 ? tex2 : tex1);
+            glBindFramebuffer(GL_FRAMEBUFFER, use2 ? fb1 : fb2);
+            glDrawArrays(GL_QUADS, 0, 4);
+             // Copy to window
+            glUniform1i(uni_do_calc, 0);
+            glBindTexture(GL_TEXTURE_2D, use2 ? tex1 : tex2);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glDrawArrays(GL_QUADS, 0, 4);
+             // Switch buffer
             use2 = !use2;
             glerr("after doing a render");
+            glfwSwapBuffers();
+            glfwSleep(1/60.0);
         }
-        glfwSwapBuffers();
-        glfwSleep(1/60.0);
+        else {
+            glfwWaitEvents();
+        }
     }
 
 }
