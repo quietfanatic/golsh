@@ -4,12 +4,15 @@
 #include <GL/glew.h>
 #include <GL/glfw.h>
 
-int width = 512;
-int height = 512;
+int width = 256;
+int height = 256;
 int window_width = 1024;
 int window_height = 1024;
 int paused = 0;
 float fps = 30;
+GLuint tex1, tex2;
+GLuint fb1, fb2;
+int use2 = 0;
 
 void glerr (const char* when) {
     GLenum err = glGetError();
@@ -94,13 +97,57 @@ void GLFWCALL resize_cb (int w, int h) {
     window_height = h;
 }
 
+void draw (int x, int y, int val) {
+    printf("Drawing at %d, %d\n", x, y);
+    unsigned char byte = val ? 0xff : 0x00;
+    glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, 1, 1, GL_LUMINANCE, GL_UNSIGNED_BYTE, &byte);
+}
+
+int left_clicking = 0;
+int right_clicking = 0;
+
+void GLFWCALL button_cb (int code, int action) {
+    if (action == GLFW_PRESS) {
+        int x, y;
+        glfwGetMousePos(&x, &y);
+        x = x * width / window_width;
+        y = (window_height - y - 1) * height / window_height;
+        if (code == GLFW_MOUSE_BUTTON_LEFT) {
+            left_clicking = 1;
+            draw(x, y, 1);
+        }
+        else if (code == GLFW_MOUSE_BUTTON_RIGHT) {
+            right_clicking = 1;
+            draw(x, y, 0);
+        }
+    }
+    else {
+        if (code == GLFW_MOUSE_BUTTON_LEFT) {
+            left_clicking = 0;
+        }
+        else if (code == GLFW_MOUSE_BUTTON_RIGHT) {
+            right_clicking = 0;
+        }
+    }
+}
+void GLFWCALL motion_cb (int x, int y) {
+    if (left_clicking) {
+        draw(x * width / window_width, (window_height - y - 1) * height / window_height, 1);
+    }
+    else if (right_clicking) {
+        draw(x * width / window_width, (window_height - y - 1) * height / window_height, 0);
+    }
+}
 
 int main () {
     glfwInit();
     glfwOpenWindow(window_width, window_height, 8, 8, 8, 0, 0, 0, GLFW_WINDOW);
+    glfwDisable(GLFW_AUTO_POLL_EVENTS);
     glfwSetWindowCloseCallback(close_cb);
     glfwSetWindowSizeCallback(resize_cb);
     glfwSetKeyCallback(key_cb);
+    glfwSetMouseButtonCallback(button_cb);
+    glfwSetMousePosCallback(motion_cb);
     GLenum err = glewInit();
     if (err != GLEW_OK) {
         fprintf(stderr, "GLEW error: %s\n", glewGetErrorString(err));
@@ -175,14 +222,14 @@ int main () {
         data[i] = rand() & 1 ? 0xff : 0x00;
     }
 
-    GLuint tex1; glGenTextures(1, &tex1);
+    glGenTextures(1, &tex1);
     glBindTexture(GL_TEXTURE_2D, tex1);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA2, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glBindTexture(GL_TEXTURE_2D, 0);
     glerr("after creating tex 1");
-    GLuint fb1; glGenFramebuffers(1, &fb1);
+    glGenFramebuffers(1, &fb1);
     glBindFramebuffer(GL_FRAMEBUFFER, fb1);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex1, 0);
     glerr("after creating fb 1");
@@ -192,14 +239,14 @@ int main () {
         exit(1);
     }
 
-    GLuint tex2; glGenTextures(1, &tex2);
+    glGenTextures(1, &tex2);
     glBindTexture(GL_TEXTURE_2D, tex2);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA2, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glBindTexture(GL_TEXTURE_2D, 0);
     glerr("after creating tex 2");
-    GLuint fb2; glGenFramebuffers(1, &fb2);
+    glGenFramebuffers(1, &fb2);
     glBindFramebuffer(GL_FRAMEBUFFER, fb2);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex2, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -210,8 +257,6 @@ int main () {
         exit(1);
     }
 
-
-    int use2 = 0;
     float verts [8] = { 0, 0,  1, 0,  1, 1,  0, 1 };
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, verts);
@@ -223,17 +268,20 @@ int main () {
             glBindFramebuffer(GL_FRAMEBUFFER, use2 ? fb1 : fb2);
             glViewport(0, 0, width, height);
             glDrawArrays(GL_QUADS, 0, 4);
-             // Copy to window
-            glUniform1i(uni_do_calc, 0);
-            glBindTexture(GL_TEXTURE_2D, use2 ? tex1 : tex2);
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            glViewport(0, 0, window_width, window_height);
-            glDrawArrays(GL_QUADS, 0, 4);
              // Switch buffer
             use2 = !use2;
-            glerr("after doing a render");
-            glfwSwapBuffers();
+        }
+         // Copy to window
+        glUniform1i(uni_do_calc, 0);
+        glBindTexture(GL_TEXTURE_2D, use2 ? tex2 : tex1);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(0, 0, window_width, window_height);
+        glDrawArrays(GL_QUADS, 0, 4);
+        glerr("after doing a render");
+        glfwSwapBuffers();
+        if (!paused) {
             glfwSleep(1/fps);
+            glfwPollEvents();
         }
         else {
             glfwWaitEvents();
