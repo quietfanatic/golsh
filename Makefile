@@ -1,2 +1,2 @@
 golsh : golsh.c
-	gcc golsh.c -lGL -lGLEW -lglfw -o golsh
+	gcc golsh.c -Wall -lGL -lGLEW -lglfw -o golsh

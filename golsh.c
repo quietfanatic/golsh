@@ -6,7 +6,8 @@
 
 int width = 512;
 int height = 512;
-int zoom = 2;
+int window_width = 1024;
+int window_height = 1024;
 int paused = 0;
 float fps = 30;
 
@@ -82,12 +83,17 @@ void GLFWCALL key_cb (int code, int action) {
         }
     }
 }
+void GLFWCALL resize_cb (int w, int h) {
+    window_width = w;
+    window_height = h;
+}
 
 
 int main () {
     glfwInit();
-    glfwOpenWindow(width*zoom, height*zoom, 8, 8, 8, 0, 0, 0, GLFW_WINDOW);
+    glfwOpenWindow(window_width, window_height, 8, 8, 8, 0, 0, 0, GLFW_WINDOW);
     glfwSetWindowCloseCallback(close_cb);
+    glfwSetWindowSizeCallback(resize_cb);
     glfwSetKeyCallback(key_cb);
     GLenum err = glewInit();
     if (err != GLEW_OK) {
@@ -215,7 +221,7 @@ int main () {
             glUniform1i(uni_do_calc, 0);
             glBindTexture(GL_TEXTURE_2D, use2 ? tex1 : tex2);
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            glViewport(0, 0, width*zoom, height*zoom);
+            glViewport(0, 0, window_width, window_height);
             glDrawArrays(GL_QUADS, 0, 4);
              // Switch buffer
             use2 = !use2;
