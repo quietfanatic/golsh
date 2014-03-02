@@ -78,6 +78,12 @@ void GLFWCALL key_cb (int code, int action) {
             case ' ':
                 paused = !paused;
                 break;
+            case '-':
+                fps /= 2;
+                break;
+            case '=':
+                fps *= 2;
+                break;
             default:
                 break;
         }
