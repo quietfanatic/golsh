@@ -1,0 +1,5 @@
+golsh
+
+Conway's Game of Life on the GPU
+
+make && ./golsh
