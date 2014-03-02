@@ -13,6 +13,7 @@ float fps = 30;
 GLuint tex1, tex2;
 GLuint fb1, fb2;
 int use2 = 0;
+int exiting = 0;
 
 void glerr (const char* when) {
     GLenum err = glGetError();
@@ -70,6 +71,7 @@ const char* fssrc =
 ;
 
 int GLFWCALL close_cb () {
+    exiting = 1;
     return GL_TRUE;
 }
 void GLFWCALL key_cb (int code, int action) {
@@ -260,7 +262,7 @@ int main () {
     float verts [8] = { 0, 0,  1, 0,  1, 1,  0, 1 };
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, verts);
-    for (;;) {
+    while (!exiting) {
         if (!paused) {
              // Run a step
             glUniform1i(uni_do_calc, 1);
@@ -287,5 +289,5 @@ int main () {
             glfwWaitEvents();
         }
     }
-
+    return 0;
 }
