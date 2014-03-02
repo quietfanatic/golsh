@@ -7,6 +7,7 @@
 int width = 512;
 int height = 512;
 int zoom = 1;
+int paused = 0;
 
 void glerr (const char* when) {
     GLenum err = glGetError();
@@ -67,9 +68,17 @@ int GLFWCALL close_cb () {
     return GL_TRUE;
 }
 void GLFWCALL key_cb (int code, int action) {
-    if (code == GLFW_KEY_ESC && action == GLFW_PRESS) {
-        glfwTerminate();
-        exit(0);
+    if (action == GLFW_PRESS) {
+        switch (code) {
+            case GLFW_KEY_ESC:
+                glfwTerminate();
+                exit(0);
+            case ' ':
+                paused = !paused;
+                break;
+            default:
+                break;
+        }
     }
 }
 
@@ -194,30 +203,32 @@ int main () {
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, verts);
     for (;;) {
-        if (!use2) {
-            glUniform1i(uni_do_calc, 1);
-            glBindTexture(GL_TEXTURE_2D, tex1);
-            glBindFramebuffer(GL_FRAMEBUFFER, fb2);
-            glDrawArrays(GL_QUADS, 0, 4);
+        if (!paused) {
+            if (!use2) {
+                glUniform1i(uni_do_calc, 1);
+                glBindTexture(GL_TEXTURE_2D, tex1);
+                glBindFramebuffer(GL_FRAMEBUFFER, fb2);
+                glDrawArrays(GL_QUADS, 0, 4);
 
-            glUniform1i(uni_do_calc, 0);
-            glBindTexture(GL_TEXTURE_2D, tex2);
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            glDrawArrays(GL_QUADS, 0, 4);
-        }
-        else {
-            glUniform1i(uni_do_calc, 1);
-            glBindTexture(GL_TEXTURE_2D, tex2);
-            glBindFramebuffer(GL_FRAMEBUFFER, fb1);
-            glDrawArrays(GL_QUADS, 0, 4);
+                glUniform1i(uni_do_calc, 0);
+                glBindTexture(GL_TEXTURE_2D, tex2);
+                glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                glDrawArrays(GL_QUADS, 0, 4);
+            }
+            else {
+                glUniform1i(uni_do_calc, 1);
+                glBindTexture(GL_TEXTURE_2D, tex2);
+                glBindFramebuffer(GL_FRAMEBUFFER, fb1);
+                glDrawArrays(GL_QUADS, 0, 4);
 
-            glUniform1i(uni_do_calc, 0);
-            glBindTexture(GL_TEXTURE_2D, tex1);
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            glDrawArrays(GL_QUADS, 0, 4);
+                glUniform1i(uni_do_calc, 0);
+                glBindTexture(GL_TEXTURE_2D, tex1);
+                glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                glDrawArrays(GL_QUADS, 0, 4);
+            }
+            use2 = !use2;
+            glerr("after doing a render");
         }
-        use2 = !use2;
-        glerr("after doing a render");
         glfwSwapBuffers();
         glfwSleep(1/60.0);
     }
