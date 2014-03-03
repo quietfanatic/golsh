@@ -70,6 +70,23 @@ const char* fssrc =
     "}\n"
 ;
 
+void randomize () {
+    unsigned char data[width*height];
+    uint i;
+    for (i = 0; i < width*height; i++) {
+        data[i] = rand() & 1 ? 0xff : 0x00;
+    }
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA2, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data);
+}
+void clear () {
+    unsigned char data[width*height];
+    uint i;
+    for (i = 0; i < width*height; i++) {
+        data[i] = 0;
+    }
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA2, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data);
+}
+
 int GLFWCALL close_cb () {
     exiting = 1;
     return GL_TRUE;
@@ -88,6 +105,12 @@ void GLFWCALL key_cb (int code, int action) {
                 break;
             case '=':
                 fps *= 2;
+                break;
+            case 'R':
+                randomize();
+                break;
+            case 'C':
+                clear();
                 break;
             default:
                 break;
@@ -218,15 +241,9 @@ int main () {
     glUniform2f(uni_tex_size, width, height);
     glerr("after getting uniforms");
 
-    unsigned char data[width*height];
-    uint i;
-    for (i = 0; i < width*height; i++) {
-        data[i] = rand() & 1 ? 0xff : 0x00;
-    }
-
     glGenTextures(1, &tex1);
     glBindTexture(GL_TEXTURE_2D, tex1);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA2, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA2, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -258,6 +275,9 @@ int main () {
         fprintf(stderr, "Framebuffer 2 creation failed: 0x%04X\n", fb_status);
         exit(1);
     }
+
+    glBindTexture(GL_TEXTURE_2D, tex1);
+    randomize();
 
     float verts [8] = { 0, 0,  1, 0,  1, 1,  0, 1 };
     glEnableVertexAttribArray(0);
