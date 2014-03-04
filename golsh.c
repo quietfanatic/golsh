@@ -1,13 +1,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 #include <GL/glew.h>
 #include <GL/glfw.h>
 
-int width = 256;
-int height = 256;
-int window_width = 1024;
-int window_height = 1024;
+int width = 1920;
+int height = 1080;
+int window_width = 1920;
+int window_height = 1080;
 int paused = 0;
 float fps = 30;
 GLuint tex1, tex2;
@@ -165,8 +166,10 @@ void GLFWCALL motion_cb (int x, int y) {
 }
 
 int main () {
+    srand(time(0));
     glfwInit();
-    glfwOpenWindow(window_width, window_height, 8, 8, 8, 0, 0, 0, GLFW_WINDOW);
+    glfwOpenWindow(window_width, window_height, 8, 8, 8, 0, 0, 0, GLFW_FULLSCREEN);
+    glfwEnable(GLFW_MOUSE_CURSOR);
     glfwDisable(GLFW_AUTO_POLL_EVENTS);
     glfwSetWindowCloseCallback(close_cb);
     glfwSetWindowSizeCallback(resize_cb);
