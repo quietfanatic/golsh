@@ -1,3 +1,5 @@
+#include <ctype.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -5,12 +7,12 @@
 #include <GL/glew.h>
 #include <GL/glfw.h>
 
-int width = 1920;
-int height = 1080;
+int width = 480;
+int height = 270;
 int window_width = 1920;
 int window_height = 1080;
 int paused = 0;
-float fps = 30;
+float fps = 15;
 GLuint tex1, tex2;
 GLuint fb1, fb2;
 int use2 = 0;
@@ -165,7 +167,206 @@ void GLFWCALL motion_cb (int x, int y) {
     }
 }
 
-int main () {
+enum ReadState {
+    WANT_X,
+    WANT_X_EQ,
+    WANT_X_VAL,
+    WANT_X_COMMA,
+    WANT_Y,
+    WANT_Y_EQ,
+    WANT_Y_VAL,
+    WANT_Y_COMMA,
+    WANT_DATA
+};
+
+void read_rle (const char* filename) {
+    FILE* f = fopen(filename, "r");
+    if (!f) {
+        fprintf(stderr, "Can't open %s for reading: %s\n", filename, strerror(errno));
+        exit(1);
+    }
+    int state = WANT_X;
+    int start_x = 0;
+    int start_y = height-1;
+    int x;
+    int y;
+    int comment = 0;
+    int c = fgetc(f);
+    for (;;) {
+        if (c == EOF) {
+            fprintf(stderr, "RLE parse error; premature EOF.\n");
+            exit(1);
+        }
+        else if (comment) {
+            if (c == '\n') {
+                comment = 0;
+            }
+            else {
+                c = fgetc(f);
+            }
+        }
+        else if (isspace(c)) {
+            c = fgetc(f);
+        }
+        else if (c == '#') {
+            comment = 1;
+            c = fgetc(f);
+        }
+        else switch (state) {
+            case WANT_X: {
+                if (c == 'x') {
+                    state = WANT_X_EQ;
+                    c = fgetc(f);
+                }
+                else {
+                    fprintf(stderr, "RLE parse error; expected x but got %c.\n", c);
+                    exit(1);
+                }
+                break;
+            }
+            case WANT_X_EQ: {
+                if (c == '=') {
+                    state = WANT_X_VAL;
+                    c = fgetc(f);
+                }
+                else {
+                    fprintf(stderr, "RLE parse error; expected = but got %c.\n", c);
+                    exit(1);
+                }
+                break;
+            }
+            case WANT_X_VAL: {
+                if (isdigit(c)) {
+                    x = c - '0';
+                    c = fgetc(f);
+                    while (isdigit(c)) {
+                        x *= 10;
+                        x += c - '0';
+                        c = fgetc(f);
+                    }
+                    if (x > width) {
+                        fprintf(stderr, "Sorry, this RLE file is too wide for me (%d > %d).\n", x, width);
+                        exit(1);
+                    }
+                    start_x = (width - x) / 2;
+                    state = WANT_X_COMMA;
+                }
+                else {
+                    fprintf(stderr, "RLE parse error; expected number but got %c.\n", c);
+                    exit(1);
+                }
+                break;
+            }
+            case WANT_X_COMMA: {
+                if (c == ',') {
+                    state = WANT_Y;
+                    c = fgetc(f);
+                }
+                else {
+                    fprintf(stderr, "RLE parse error; expected , but got %c.\n", c);
+                    exit(1);
+                }
+                break;
+            }
+            case WANT_Y: {
+                if (c == 'y') {
+                    state = WANT_Y_EQ;
+                    c = fgetc(f);
+                }
+                else {
+                    fprintf(stderr, "RLE parse error; expected x but got %c.\n", c);
+                    exit(1);
+                }
+                break;
+            }
+            case WANT_Y_EQ: {
+                if (c == '=') {
+                    state = WANT_Y_VAL;
+                    c = fgetc(f);
+                }
+                else {
+                    fprintf(stderr, "RLE parse error; expected = but got %c.\n", c);
+                    exit(1);
+                }
+                break;
+            }
+            case WANT_Y_VAL: {
+                if (isdigit(c)) {
+                    y = c - '0';
+                    c = fgetc(f);
+                    while (isdigit(c)) {
+                        y *= 10;
+                        y += c - '0';
+                        c = fgetc(f);
+                    }
+                    if (y > width) {
+                        fprintf(stderr, "Sorry, this RLE file is too tall for me (%d > %d).\n", y, height);
+                        exit(1);
+                    }
+                    start_y = (height + y) / 2 - 1;
+                    state = WANT_Y_COMMA;
+                }
+                else {
+                    fprintf(stderr, "RLE parse error; expected number but got %c.\n", c);
+                    exit(1);
+                }
+                break;
+            }
+            case WANT_Y_COMMA: {
+                if (c == ',') {
+                    comment = 1;
+                    state = WANT_DATA;
+                    x = start_x;
+                    y = start_y;
+                    c = fgetc(f);
+                }
+                else {
+                    fprintf(stderr, "RLE parse error; expected , but got %c.\n", c);
+                    exit(1);
+                }
+                break;
+            }
+            case WANT_DATA: {
+                int run_count = 1;
+                if (isdigit(c)) {
+                    run_count = c - '0';
+                    c = fgetc(f);
+                    while (isdigit(c)) {
+                        run_count *= 10;
+                        run_count += c - '0';
+                        c = fgetc(f);
+                    }
+                }
+                if (c == 'b' || c == 'o') {
+                    char dat [run_count];
+                    int i;
+                    for (i = 0; i < run_count; i++)
+                        dat[i] = c == 'o' ? 0xff : 0x00;
+                    glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, run_count, 1, GL_LUMINANCE, GL_UNSIGNED_BYTE, dat);
+                    x += run_count;
+                    c = fgetc(f);
+                }
+                else if (c == '$') {
+                    x = start_x;
+                    y -= run_count;
+                    c = fgetc(f);
+                }
+                else if (c == '!') {
+                    goto done_reading;
+                }
+                else {
+                    fprintf(stderr, "RLE parse error; unrecognized character %c.\n", c);
+                    exit(1);
+                }
+                break;
+            }
+        }
+    }
+    done_reading:
+    fclose(f);
+}
+
+int main (int argc, char** argv) {
     srand(time(0));
     glfwInit();
     glfwOpenWindow(window_width, window_height, 8, 8, 8, 0, 0, 0, GLFW_FULLSCREEN);
@@ -280,13 +481,20 @@ int main () {
     }
 
     glBindTexture(GL_TEXTURE_2D, tex1);
-    randomize();
+    if (argc == 2) {
+        read_rle(argv[1]);
+    }
+    else {
+        randomize();
+    }
 
     float verts [8] = { 0, 0,  1, 0,  1, 1,  0, 1 };
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, verts);
+
+    int first_frame = 1;
     while (!exiting) {
-        if (!paused) {
+        if (!paused && !first_frame) {
              // Run a step
             glUniform1i(uni_do_calc, 1);
             glBindTexture(GL_TEXTURE_2D, use2 ? tex2 : tex1);
@@ -296,6 +504,7 @@ int main () {
              // Switch buffer
             use2 = !use2;
         }
+        first_frame = 0;
          // Copy to window
         glUniform1i(uni_do_calc, 0);
         glBindTexture(GL_TEXTURE_2D, use2 ? tex2 : tex1);
