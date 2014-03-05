@@ -7,18 +7,20 @@
 #include <GL/glew.h>
 #include <GL/glfw.h>
 
-int width = 480;
-int height = 270;
-int window_width = 1920;
-int window_height = 1080;
+int width = 256;
+int height = 256;
+int window_width = 512;
+int window_height = 512;
+int fullscreen = 0;
 int paused = 0;
 int advance_frame = 0;
+int seed;
 float fps = 15;
 GLuint tex1, tex2;
 GLuint fb1, fb2;
 int use2 = 0;
 int exiting = 0;
-int wrap = 0;
+int wrap = 1;
 
 void glerr (const char* when) {
     GLenum err = glGetError();
@@ -374,10 +376,62 @@ void read_rle (const char* filename) {
     fclose(f);
 }
 
+int opt_i (char* arg, size_t len, const char* prefix, int* var) {
+    if (0==strncmp(arg, prefix, len)) {
+        sscanf(arg+len, "%d", var);
+        return 1;
+    }
+    return 0;
+}
+int opt_f (char* arg, size_t len, const char* prefix, float* var) {
+    if (0==strncmp(arg, prefix, len)) {
+        sscanf(arg+len, "%f", var);
+        return 1;
+    }
+    return 0;
+}
+int opt_b (char* arg, const char* opt, int* var) {
+    if (0==strcmp(arg, opt)) {
+        *var = 1;
+        return 1;
+    }
+    return 0;
+}
+int opt_nb (char* arg, const char* opt, int* var) {
+    if (0==strcmp(arg, opt)) {
+        *var = 0;
+        return 1;
+    }
+    return 0;
+}
+
 int main (int argc, char** argv) {
-    srand(time(0));
+    const char* filename = NULL;
+    seed = time(0);
+    int i;
+    for (i = 1; i < argc; i++) {
+        if (opt_i(argv[i], 3, "-w=", &width)) continue;
+        if (opt_i(argv[i], 3, "-h=", &height)) continue;
+        if (opt_i(argv[i], 4, "-ww=", &window_width)) continue;
+        if (opt_i(argv[i], 4, "-wh=", &window_height)) continue;
+        if (opt_b(argv[i], "-wrap", &wrap)) continue;
+        if (opt_nb(argv[i], "-no-wrap", &wrap)) continue;
+        if (opt_b(argv[i], "-fs", &fullscreen)) continue;
+        if (opt_f(argv[i], 5, "-fps=", &fps)) continue;
+        if (opt_i(argv[i], 6, "-seed=", &seed)) continue;
+        if (argv[i][0] == '-') {
+            if (argv[i][1] == '-')
+                break;
+            else {
+                fprintf(stderr, "Unrecognized option: %s\n", argv[i]);
+                exit(1);
+            }
+        }
+        filename = argv[i];
+    }
+    srand(seed);
     glfwInit();
-    glfwOpenWindow(window_width, window_height, 8, 8, 8, 0, 0, 0, GLFW_FULLSCREEN);
+    glfwOpenWindow(window_width, window_height, 8, 8, 8, 0, 0, 0, fullscreen ? GLFW_FULLSCREEN : GLFW_WINDOW);
     glfwEnable(GLFW_MOUSE_CURSOR);
     glfwDisable(GLFW_AUTO_POLL_EVENTS);
     glfwSetWindowCloseCallback(close_cb);
@@ -497,8 +551,8 @@ int main (int argc, char** argv) {
     }
 
     glBindTexture(GL_TEXTURE_2D, tex1);
-    if (argc == 2) {
-        read_rle(argv[1]);
+    if (filename) {
+        read_rle(filename);
     }
     else {
         randomize();
