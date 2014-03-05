@@ -12,6 +12,7 @@ int height = 270;
 int window_width = 1920;
 int window_height = 1080;
 int paused = 0;
+int advance_frame = 0;
 float fps = 15;
 GLuint tex1, tex2;
 GLuint fb1, fb2;
@@ -114,6 +115,10 @@ void GLFWCALL key_cb (int code, int action) {
                 break;
             case 'C':
                 clear();
+                break;
+            case '.':
+                paused = 1;
+                advance_frame = 1;
                 break;
             default:
                 break;
@@ -494,7 +499,7 @@ int main (int argc, char** argv) {
 
     int first_frame = 1;
     while (!exiting) {
-        if (!paused && !first_frame) {
+        if (!first_frame && (!paused || advance_frame)) {
              // Run a step
             glUniform1i(uni_do_calc, 1);
             glBindTexture(GL_TEXTURE_2D, use2 ? tex2 : tex1);
@@ -505,6 +510,7 @@ int main (int argc, char** argv) {
             use2 = !use2;
         }
         first_frame = 0;
+        advance_frame = 0;
          // Copy to window
         glUniform1i(uni_do_calc, 0);
         glBindTexture(GL_TEXTURE_2D, use2 ? tex2 : tex1);
