@@ -18,6 +18,7 @@ GLuint tex1, tex2;
 GLuint fb1, fb2;
 int use2 = 0;
 int exiting = 0;
+int wrap = 0;
 
 void glerr (const char* when) {
     GLenum err = glGetError();
@@ -457,6 +458,10 @@ int main (int argc, char** argv) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA2, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    if (!wrap) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    }
     glBindTexture(GL_TEXTURE_2D, 0);
     glerr("after creating tex 1");
     glGenFramebuffers(1, &fb1);
@@ -474,6 +479,10 @@ int main (int argc, char** argv) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA2, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    if (!wrap) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    }
     glBindTexture(GL_TEXTURE_2D, 0);
     glerr("after creating tex 2");
     glGenFramebuffers(1, &fb2);
