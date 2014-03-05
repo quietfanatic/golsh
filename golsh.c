@@ -117,8 +117,10 @@ void GLFWCALL key_cb (int code, int action) {
                 clear();
                 break;
             case '.':
-                paused = 1;
-                advance_frame = 1;
+                if (paused)
+                    advance_frame = 1;
+                else
+                    paused = 1;
                 break;
             default:
                 break;
