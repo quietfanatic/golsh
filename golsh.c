@@ -21,6 +21,7 @@ GLuint fb1, fb2;
 int use2 = 0;
 int exiting = 0;
 int wrap = 1;
+int trails = 0;
 
 void glerr (const char* when) {
     GLenum err = glGetError();
@@ -42,6 +43,7 @@ const char* vssrc =
 const char* fssrc =
     "#version 110\n"
     "uniform bool do_calc;\n"
+    "uniform bool trails;\n"
     "uniform sampler2D tex;\n"
     "uniform vec2 tex_size;\n"
     "varying vec2 tp;\n"
@@ -53,7 +55,8 @@ const char* fssrc =
     "        float b = y - 1.0 / tex_size.y;"
     "        float r = x + 1.0 / tex_size.x;"
     "        float t = y + 1.0 / tex_size.y;"
-    "        float on = texture2D(tex, vec2(x, y)).r;\n"
+    "        vec4 old = texture2D(tex, vec2(x, y));\n"
+    "        float on = old.r;\n"
     "        float count = \n"
     "            + texture2D(tex, vec2(l, b)).r\n"
     "            + texture2D(tex, vec2(x, b)).r\n"
@@ -68,7 +71,10 @@ const char* fssrc =
     "            gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);\n"
     "        }\n"
     "        else {\n"
-    "            gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);\n"
+    "            float trail = trails\n"
+    "                ? old.b <= 32.0/255.0 ? old.b : old.b - (1.0/255.0)\n"
+    "                : 0.0;\n"
+    "            gl_FragColor = vec4(0.0, 0.0, trail, 0.0);\n"
     "        }\n"
     "    }\n"
     "    else {\n"
@@ -83,7 +89,7 @@ void randomize () {
     for (i = 0; i < width*height; i++) {
         data[i] = rand() & 1 ? 0xff : 0x00;
     }
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA2, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data);
 }
 void clear () {
     unsigned char data[width*height];
@@ -91,7 +97,7 @@ void clear () {
     for (i = 0; i < width*height; i++) {
         data[i] = 0;
     }
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA2, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data);
 }
 
 int GLFWCALL close_cb () {
@@ -417,6 +423,7 @@ int main (int argc, char** argv) {
         if (opt_b(argv[i], "-wrap", &wrap)) continue;
         if (opt_nb(argv[i], "-no-wrap", &wrap)) continue;
         if (opt_b(argv[i], "-fs", &fullscreen)) continue;
+        if (opt_b(argv[i], "-trails", &trails)) continue;
         if (opt_f(argv[i], 5, "-fps=", &fps)) continue;
         if (opt_i(argv[i], 6, "-seed=", &seed)) continue;
         if (argv[i][0] == '-') {
@@ -503,13 +510,15 @@ int main (int argc, char** argv) {
     GLint uni_tex = glGetUniformLocation(prid, "tex");
     GLint uni_tex_size = glGetUniformLocation(prid, "tex_size");
     GLint uni_do_calc = glGetUniformLocation(prid, "do_calc");
+    GLint uni_trails = glGetUniformLocation(prid, "trails");
     glUniform1i(uni_tex, 0);
     glUniform2f(uni_tex_size, width, height);
+    glUniform1i(uni_trails, trails);
     glerr("after getting uniforms");
 
     glGenTextures(1, &tex1);
     glBindTexture(GL_TEXTURE_2D, tex1);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA2, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     if (!wrap) {
@@ -530,7 +539,7 @@ int main (int argc, char** argv) {
 
     glGenTextures(1, &tex2);
     glBindTexture(GL_TEXTURE_2D, tex2);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA2, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     if (!wrap) {
