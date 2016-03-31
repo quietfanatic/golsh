@@ -14,6 +14,8 @@ int window_height = 512;
 int fullscreen = 0;
 int paused = 0;
 int advance_frame = 0;
+int rewind_frame = 0;
+int rewound = 0;
 int seed;
 float fps = 15;
 GLuint tex1, tex2;
@@ -43,20 +45,20 @@ const char* vssrc =
 const char* fssrc =
     "#version 110\n"
     "uniform bool do_calc;\n"
+    "uniform bool rewind;\n"
     "uniform bool trails;\n"
     "uniform sampler2D tex;\n"
     "uniform vec2 tex_size;\n"
     "varying vec2 tp;\n"
     "void main () {\n"
     "    if (do_calc) {\n"
-    "        float x = tp.x;"
-    "        float y = tp.y;"
-    "        float l = x - 1.0 / tex_size.x;"
-    "        float b = y - 1.0 / tex_size.y;"
-    "        float r = x + 1.0 / tex_size.x;"
-    "        float t = y + 1.0 / tex_size.y;"
+    "        float x = tp.x;\n"
+    "        float y = tp.y;\n"
+    "        float l = x - 1.0 / tex_size.x;\n"
+    "        float b = y - 1.0 / tex_size.y;\n"
+    "        float r = x + 1.0 / tex_size.x;\n"
+    "        float t = y + 1.0 / tex_size.y;\n"
     "        vec4 old = texture2D(tex, vec2(x, y));\n"
-    "        float on = old.r;\n"
     "        float count = \n"
     "            + texture2D(tex, vec2(l, b)).r\n"
     "            + texture2D(tex, vec2(x, b)).r\n"
@@ -66,16 +68,26 @@ const char* fssrc =
     "            + texture2D(tex, vec2(l, t)).r\n"
     "            + texture2D(tex, vec2(x, t)).r\n"
     "            + texture2D(tex, vec2(r, t)).r\n"
-    "        ;"
-    "        if (on == 1.0 ? count == 2.0 || count == 3.0 : count == 3.0) {\n"
-    "            gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);\n"
+    "        ;\n"
+    "        int history = int(old.a * 255.0) / 2;\n"
+    "        if (old.r == 1.0) history += 128;\n"
+    "        if (old.r == 1.0 ? count == 2.0 || count == 3.0 : count == 3.0) {\n"
+    "            gl_FragColor = vec4(1.0, 1.0, 1.0, float(history)/255.0);\n"
     "        }\n"
     "        else {\n"
     "            float trail = trails\n"
     "                ? old.b <= 32.0/255.0 ? old.b : old.b - (1.0/255.0)\n"
     "                : 0.0;\n"
-    "            gl_FragColor = vec4(0.0, 0.0, trail, 0.0);\n"
+    "            gl_FragColor = vec4(0.0, 0.0, trail, float(history)/255.0);\n"
     "        }\n"
+    "    }\n"
+    "    else if (rewind) {\n"
+    "        vec4 old = texture2D(tex, tp);\n"
+    "        int history = int(old.a * 255.0);\n"
+    "        if (history >= 128)\n"
+    "            gl_FragColor = vec4(1.0, 1.0, 1.0, float(history*2)/255.0);\n"
+    "        else\n"
+    "            gl_FragColor = vec4(0.0, 0.0, 0.0, float(history*2)/255.0);\n"
     "    }\n"
     "    else {\n"
     "        gl_FragColor = texture2D(tex, tp);\n"
@@ -131,6 +143,11 @@ void GLFWCALL key_cb (int code, int action) {
                 else
                     paused = 1;
                 break;
+            case GLFW_KEY_BACKSPACE:
+                if (paused)
+                    rewind_frame = 1;
+                else
+                    paused = 1;
             default:
                 break;
         }
@@ -510,6 +527,7 @@ int main (int argc, char** argv) {
     GLint uni_tex = glGetUniformLocation(prid, "tex");
     GLint uni_tex_size = glGetUniformLocation(prid, "tex_size");
     GLint uni_do_calc = glGetUniformLocation(prid, "do_calc");
+    GLint uni_rewind = glGetUniformLocation(prid, "rewind");
     GLint uni_trails = glGetUniformLocation(prid, "trails");
     glUniform1i(uni_tex, 0);
     glUniform2f(uni_tex_size, width, height);
@@ -573,7 +591,21 @@ int main (int argc, char** argv) {
 
     int first_frame = 1;
     while (!exiting) {
-        if (!first_frame && (!paused || advance_frame)) {
+        if (rewind_frame) {
+            if (rewound < 8) {
+                glUniform1i(uni_rewind, 1);
+                glBindTexture(GL_TEXTURE_2D, use2 ? tex2 : tex1);
+                glBindFramebuffer(GL_FRAMEBUFFER, use2 ? fb1 : fb2);
+                glViewport(0, 0, width, height);
+                glDrawArrays(GL_QUADS, 0, 4);
+                use2 = !use2;
+                glUniform1i(uni_rewind, 0);
+                rewound += 1;
+            }
+            rewind_frame = 0;
+        }
+        else if (!first_frame && (!paused || advance_frame)) {
+            if (rewound > 0) rewound--;
              // Run a step
             glUniform1i(uni_do_calc, 1);
             glBindTexture(GL_TEXTURE_2D, use2 ? tex2 : tex1);
